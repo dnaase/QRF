@@ -1,24 +1,3 @@
-# The MIT License (MIT)
-# Copyright (c) 2015 dnaase <Yaping Liu: lyping1986@gmail.com>
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 # matrixEqtlEngine.R
 # Nov 26, 2014
 # 10:09:44 AM
@@ -104,7 +83,7 @@ matrixEQtlAll<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixE
 
 
 #####matrix eQTL with cis trans information
-matrixEQtlCis<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixEQtlCis.pdf", snpLoc, exprLoc, outputFileCis="cis-qtl.matrixEQtlAll.txt", outputFileTrans="trans-qtl.matrixEQtlAll.txt", pvalueCis=1, pvalueTrans=1, cisDist=1e6){
+matrixEQtlCis<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixEQtlCis.pdf", snpLoc, exprLoc, outputFileCis="cis-qtl.matrixEQtlAll.txt", outputFileTrans="trans-qtl.matrixEQtlAll.txt", pvalueCis=1, pvalueTrans=1, cisDist=1e6, noFDRsaveMemory = FALSE, pvalue.hist="qqplot"){
 	useModel = modelLINEAR;
 	output_file_name_cis = outputFileCis;
 	output_file_name_tra = outputFileTrans;
@@ -169,9 +148,9 @@ matrixEQtlCis<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixE
 			snpspos = snpspos, 
 			genepos = genepos,
 			cisDist = cisDist,
-			pvalue.hist = "qqplot",
+			pvalue.hist = pvalue.hist,
 			min.pv.by.genesnp = FALSE,
-			noFDRsaveMemory = FALSE);
+			noFDRsaveMemory = noFDRsaveMemory);
 	
 	#unlink(output_file_name_tra);
 	#unlink(output_file_name_cis);
@@ -184,10 +163,85 @@ matrixEQtlCis<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixE
 	
 	#cat('Detected distant eQTLs:', '\n');
 	#show(me$trans$eqtls)
-	
-	pdf(qqplotFile, paper="special", height=5, width=5)
-	plot(me, pch=16, cex=0.7)
-	dev.off()
+	if(!is.logical(pvalue.hist) || pvalue.hist){
+		pdf(qqplotFile, paper="special", height=5, width=5)
+		plot(me, pch=16, cex=0.7)
+		dev.off()
+	}
 	me
 }
 
+
+
+###use 
+matrixEQtlAllLinearCross<-function(snpInfo, exprInfo, covarInfo, qqplotFile="qqplot.matrixEQtlAll.pdf", outputFile="qtl.matrixEQtlAll.txt", pvalue=1){
+	useModel = modelLINEAR_CROSS;
+	
+	# Output file name
+	output_file_name = outputFile;
+	
+	# Only associations significant at this level will be saved
+	pvOutputThreshold = pvalue;
+	
+	# Error covariance matrix
+	# Set to numeric() for identity.
+	errorCovariance = numeric();
+	
+	## Load genotype data
+	
+	snps = SlicedData$new();
+	snps$fileDelimiter = "\t";      # the TAB character
+	snps$fileOmitCharacters = "NA"; # denote missing values;
+	snps$fileSkipRows = 1;          # one row of column labels
+	snps$fileSkipColumns = 1;       # one column of row labels
+	snps$fileSliceSize = 2000;      # read file in slices of 2,000 rows
+	snps$LoadFile(snpInfo);
+	
+	## Load gene expression data
+	
+	gene = SlicedData$new();
+	gene$fileDelimiter = "\t";      # the TAB character
+	gene$fileOmitCharacters = "NA"; # denote missing values;
+	gene$fileSkipRows = 1;          # one row of column labels
+	gene$fileSkipColumns = 1;       # one column of row labels
+	gene$fileSliceSize = 2000;      # read file in slices of 2,000 rows
+	gene$LoadFile(exprInfo);
+	
+	## Load covariates
+	
+	cvrt = SlicedData$new();
+	cvrt$fileDelimiter = "\t";      # the TAB character
+	cvrt$fileOmitCharacters = "NA"; # denote missing values;
+	cvrt$fileSkipRows = 1;          # one row of column labels
+	cvrt$fileSkipColumns = 1;       # one column of row labels
+	if(length(covarInfo)>0) {
+		cvrt$LoadFile(covarInfo);
+	}
+	
+	## Run the analysis
+	
+	me = Matrix_eQTL_engine(
+			snps = snps,
+			gene = gene,
+			cvrt = cvrt,
+			output_file_name = output_file_name,
+			pvOutputThreshold = pvOutputThreshold,
+			useModel = useModel, 
+			errorCovariance = errorCovariance, 
+			verbose = TRUE,
+			pvalue.hist = FALSE,
+			min.pv.by.genesnp = FALSE,
+			noFDRsaveMemory = FALSE);
+	
+	#unlink(output_file_name);
+	
+	## Results:
+	
+	cat('Analysis done in: ', me$time.in.sec, ' seconds', '\n');
+	#cat('Detected eQTLs:', '\n');
+	#show(me$all$eqtls)
+	#pdf(qqplotFile, paper="special", height=5, width=5)
+	#plot(me, pch=16, cex=0.7)
+	#dev.off()
+	me
+}

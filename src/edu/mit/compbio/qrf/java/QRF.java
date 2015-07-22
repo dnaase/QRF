@@ -55,6 +55,7 @@ import net.sf.javaml.core.Dataset;
 import net.sf.javaml.core.Instance;
 import net.sf.javaml.tools.data.FileHandler;
 
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
@@ -76,13 +77,13 @@ public class QRF {
 	@Option(name="-ignoreCV",usage="ignore the cross validation step, default: false")
 	public boolean ignoreCV = false;
 
-	@Option(name="-trainFile",usage="the train data set file name to be load, default: null")
-	public String trainFile = null;
+//	@Option(name="-trainFile",usage="the train data set file name to be load, default: null")
+//	public String trainFile = null;
 	
-	@Option(name="-testFile",usage="the test data set file name to be load, default: null")
+	@Option(name="-inputFile",usage="the test data set file name to be load, default: null")
 	public String testFile = null;
 	
-	@Option(name="-testOutput",usage="after apply model, the model predicted value on test dataset, default: null")
+	@Option(name="-outputFile",usage="after apply model, the model predicted value on test dataset, default: null")
 	public String testOutput = null;
 
 	@Option(name="-seed",usage="seed for the randomization, default: 12345")
@@ -101,7 +102,7 @@ public class QRF {
 //	public Integer maxBins = 100;
 
 	@Option(name="-classIndex",usage="which column is the class to be identified, default: 5")
-	public int classIndex = 5;
+	public int classIndex = 4;
 	
 	@Option(name="-permutation",usage="enable permutation test to calculate p value, default: not enabled")
 	public boolean permutation = false;
@@ -119,13 +120,13 @@ public class QRF {
 	@Option(name="-h",usage="show option information")
 	public boolean help = false;
 	
-	final private static String USAGE = "QRF [opts] trainModel.txt";
+	final private static String USAGE = "QRF [opts] trainFile.txt";
 
 	@Argument
 	private List<String> arguments = new ArrayList<String>();
 
 	
-	private static final Logger log = Logger.getLogger(QRF.class);
+	private static Logger log = Logger.getLogger(QRF.class);
 	private PrintWriter writer = null; 
 	private static long startTime = -1;
 
@@ -139,6 +140,7 @@ public class QRF {
 	 */
 	public static void main(String[] args) throws Exception {
 		QRF qrf = new QRF();
+		BasicConfigurator.configure();
 		qrf.doMain(args);
 	}
 
@@ -149,7 +151,7 @@ public class QRF {
 					parser.setUsageWidth(80);
 					try
 					{
-						if(help || args.length==0) throw new CmdLineException(USAGE);
+						if(help || args.length < 1) throw new CmdLineException(USAGE);
 						parser.parseArgument(args);
 						
 					
@@ -162,9 +164,10 @@ public class QRF {
 						System.err.println();
 						return;
 					}
+					String trainFile = args[0];
 					//read input bed file, for each row,
 					//String trainModelFile = arguments.get(0);
-					initiate(testOutput);
+					initiate(trainFile, testOutput);
 					
 					
 					Classifier model = null;
@@ -182,7 +185,7 @@ public class QRF {
 					finish(testOutput);
 	}
 	
-	private void initiate(String outputFile) throws IOException{
+	private void initiate(String trainFile, String outputFile) throws IOException{
 		startTime = System.currentTimeMillis();
 		 data = FileHandler.loadDataset(new File(trainFile), classIndex-1, sep);
 		if(outputFile != null){

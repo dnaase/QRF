@@ -283,7 +283,7 @@ public class QRF {
 				num++;
 			     if(num % 100000 == 0){
 			    	 log.info("Line " + num + " ...");
-			    	 writer.flush();
+			    	// writer.flush();
 			     }
 			}
 			 log.info("Permutation in time  " + j + " ...");

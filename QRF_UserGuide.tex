@@ -1,0 +1,201 @@
+\documentclass[12pt]{article}
+\usepackage{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+\usepackage{hyperref} 
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\usepackage{enumitem}
+\usepackage{color}
+\linespread{1.5}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[english]{isodate}
+\usepackage{moreverb}
+\usepackage[parfill]{parskip}
+\renewcommand{\sfdefault}{ptm}
+\pagenumbering{Roman}
+\newpage
+
+\pagenumbering{arabic}
+
+\setdescription{labelsep=\textwidth}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+\geometry{a3paper} % or letter or a5paper or ... etc
+% \geometry{landscape} % rotated page geometry
+
+% See the ``Article customise'' template for come common customisations
+
+{\Huge  \title{ \textbf{QRF User Guide }\\ For QRF v0.01}}
+\author{Yaping Liu}
+\date{Jul. 15. 2015} % delete this line to display the current date
+
+
+%%quick start 
+%%make QRF=""
+%%cd $QRF
+%% perl QRF_pipeline.pl test configure.txt
+
+
+%%% BEGIN DOCUMENT
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+
+
+{\color{red}{\section{Introduction}}}
+QRF: a random forest model to boost meQTL/eQTL prediction power by using T statistics calculated from common eQTL mapping program (e.g. Matrix EQTL), probes genetic distance-expected genetic distance (recombination rate) and normalized HiC signal. QRF is a public available free software (GPL v3 license) mainly written in Java and wrapped up by perl script. Copyright belongs to Computational Biology Group, CSAIL, MIT .
+
+{\color{red}{\section{Prerequisites}}}
+\begin{enumerate}
+\item System: Already tested in Linux (CentOS 6) and Mac OSX 10 (10G memory is the minimum requirement). 
+\item Java: Java(TM) SE Runtime Environment 1.6 (Linux, Mac OSX) or later.
+\item Perl: perl scripts in the utilities require Perl v 5.8.8 or later.
+\item Specify \$PATH: Specify QRF's root directory in the environment
+
+\end{enumerate}
+
+{\color{red}\section{Quick Start}}
+
+{\color{blue}\subsection{Download QRF program.}}
+Download zipped file from \url{http://compbio.mit.edu/QRF/}
+
+{\color{blue}\subsection{Download additional input files for test}}
+All of the input example file could be downloaded from our website: \url{http://compbio.mit.edu/QRF/}.  All *.gz files need to be unzipped firstly. configure.txt will be under software root directory. All the other files will be under ./test directory.
+\begin{enumerate}
+
+\item configure.txt file: specify all of the input files name below and working directory 
+\item SNP probes location file: SNP.locs. 
+\item SNP information file: SNP.tab. 
+\item CpG/Gene\_expression probes location file: DNAm.locs. 
+\item CpG/Gene\_expression  information file: DNAm.tab. 
+\item Covariant information file: cov.tab. 
+\item Recombination rate big wig file: genetic\_map\_1kGv3\_test.hg19.bw. 
+\item Recombination rate expectation index file: All\_length\_1M.all\_chr.hg19.permutate100.1kGv3.summary.txt (\emph{\color{red} Download separately}). 
+\item KR normalized HiC signal file: GM12878\_chr1\_1kb.KRnorm\_raw\_test.sparseBed.txt. 
+\item training file: training\_2k.txt 
+
+\end{enumerate}
+
+{\color{blue}\subsection{Run QRF program in terminal.}}
+
+\begin{enumerate}
+\item All of the input file should be put into the same directory specified in configure.txt. The following command would output meQTL calling result from matrixEQTL and result from QRF:
+\begin{verbatimtab}
+perl QRF_pipeline.pl test configure.txt
+\end{verbatimtab}
+\end{enumerate}
+
+
+{\color{red}\section{Interpret output files}}
+
+{\color{blue}\subsection{*.afterRandomForest.annotate.txt file }}
+Each row is one pair of meQTL. Here is the explanation of each column:
+\begin{enumerate}
+\item[chr:] chromosome name
+\item[start:] genomic coordinate.(0-based)
+\item[end:] genomic coordinate.(1-based)
+\item[rsid:] SNP rsid.
+\item[cpg id:] CpG's id as in your input DNAm.locs.
+\item[matrixEQTL:] FDR corrected p value by matrixEQTL
+\item[QRF:] permutation p value by QRF
+
+\end{enumerate}
+
+
+{\color{red}\section{Input files format}}
+
+\begin{description}
+
+\item[configure.txt file] specify all of the input files name information and working directory. Modify it as you need.
+\item[MatrixQtlResult] Optional, when you provided the matrixEQTL result file, QRF will not run matrixEQTL anymore. 
+\item[SNP\_loc] SNP probes location file. As input in matrixEQTL. 
+\item[gene\_loc] CpG/Gene\_expression probes location file. As input in matrixEQTL.  
+\item[SNP\_tab] SNP  information file. As input in matrixEQTL.
+\item[gene\_tab] CpG/Gene\_expression  information file. As input in matrixEQTL.
+\item[covar\_tab] Covariant information file. As input in matrixEQTL.
+\item[recombination\_bw] Recombination rate big wig file. Could be downloaded from 1000 genome project, Hapmap, UCSC table browser or our website.
+\item[recombination\_expect] Recombination rate expectation index file. Could be download from our website. 
+\item[HiC\_KRnorm] KR normalized HiC signal file. Could be converted by  "normalize\_hic2014\_to\_sparseBed.pl" script under perl directory (detailed described in Usage Detail section) 
+\item[training\_file] training file for QRF, could be generated by mode 2 in QRF\_pipeline.pl or downloaded directly from QRF website
+
+\end{description}
+
+{\color{red}\section{Usage Detail}}
+{\color{blue}\subsection{QRF\_pipeline.pl}}
+ \begin{verbatimtab}
+perl QRF_pipeline.pl [option] prefix configure.txt
+\end{verbatimtab}
+
+
+{\color{blue}\subsubsection{General options}}
+\begin{description}
+\item[-{}-help] Generate this help message.
+
+\item[-{}-mode \begin{math}<\end{math} mode\_number \begin{math}>\end{math}]  1. Detect meQTL/eQTL; 2. Generate training file; (Default: {\tt `--mode 1'})
+
+\item[-{}-region \begin{math}<\end{math} interval \begin{math}>\end{math}]  Specify the region for mode 1 or 2. Should be format like: chr1:1-1000 or chr1 (Default: {\tt `--region chr1'})
+
+\item[-{}-fdr \begin{math}<\end{math} FDR \begin{math}>\end{math}]  Specify the false discovery rate for Matrix EQTL and QRF (Default: {\tt `--fdr 0.01'})
+
+\item[-{}-mem \begin{math}<\end{math} memory \begin{math}>\end{math}]  Specify the number of gigabytes in the memory to use (Default: {\tt `--mem 15'})
+
+\item[-{}-qrf\_path \begin{math}<\end{math} QRF\_path \begin{math}>\end{math}]  Specify the QRF root direcotry (Default: not specified. use environment variable \$QRF)
+
+
+\end{description}
+
+{\color{blue}\subsubsection{Options for mode 1, run QRF}}
+\begin{description}
+
+\item[-{}-tree\_num \begin{math}<\end{math} tree\_number \begin{math}>\end{math}]  Specify the number of tree used for QRF (Default: {\tt `--tree\_num 1000'})
+\item[-{}-class\_index \begin{math}<\end{math} class\_index \begin{math}>\end{math}]  Specify the column number that are the label column for QRF (Default: {\tt `--class\_index 5'})
+\item[-{}-label\_class \begin{math}<\end{math} label\_class \begin{math}>\end{math}]  Specify the class label name used for QRF (Default: {\tt `--label\_class meqtl'})
+\item[-{}-permutation\_times \begin{math}<\end{math} permutation\_times \begin{math}>\end{math}]  Specify the number of permutation used for QRF. 0 or negative value means not enabled (Default: {\tt `--permutation\_times 1'})
+\item[-{}-sep \begin{math}<\end{math} String \begin{math}>\end{math}]  Specify the string used to seperate the column (Default: tab delimit)
+\item[-{}-sub\_sampling \begin{math}<\end{math} num\_of\_samples \begin{math}>\end{math}]  Specify the number of sample used for QRF (Default: not enabled, and use all of the samples)
+\item[-{}-hic\_resolution \begin{math}<\end{math} hic\_resolution \begin{math}>\end{math}]  Specify the resolution of HiC signal used, default is 1kb (Default: {\tt `--hic\_resolution 1'})
+
+\end{description}
+
+
+{\color{blue}\subsubsection{Options for mode 2, generate training file}}
+\begin{description}
+\item[-{}-positive\_probes\_sampling \begin{math}<\end{math} number\_of\_positive\_probes \begin{math}>\end{math}]  Specify the number of positive probes used for QRF training (Default: {\tt `--positive\_probes\_sampling 10000'})
+\item[-{}-negative\_probes\_sampling \begin{math}<\end{math} number\_of\_negative\_probes \begin{math}>\end{math}]  Specify the number of negative probes used for QRF training (Default: {\tt `--negative\_probes\_sampling 10000'})
+
+\end{description}
+
+{\color{blue}\subsection{normalize\_hic2014\_to\_sparseBed.pl}}
+ \begin{verbatimtab}
+perl normalize_hic2014_to_sparseBed.pl  chr1_1kb.KRnorm chr1_1kb.RAWobserved > chr1_1kb.KRnorm.sparseBed.txt
+\end{verbatimtab}
+
+{\color{blue}\subsubsection{Input}}
+\begin{description}
+\item[chr1\_1kb.KRnorm] KRnorm normalized efficient as provided in Rao et al. Cell 2014. (GSE63525)
+\item[chr1\_1kb.RAWobserved] Raw count as provided in Rao et al. Cell 2014. (GSE63525)
+\item[chr1\_1kb.KRnorm.sparseBed.txt] output HiC signal for QRF
+
+\end{description}
+
+
+
+
+
+
+{\color{red}\section{Build on source code}}
+Source code is available on Github website:\\
+https://github.com/dnaase/QRF\\
+All of the required libraries are available in \url{https://github.com/dnaase/QRF/lib/}.
+
+{\color{red}\section{Contact for help}}
+For any of question on QRF, please join our google group \url{https://groups.google.com/d/forum/qrf-help/} for help
+
+{\color{red}\section{Cite QRF}}
+Please use the following publication to cite QRF:
+
+
+\end{document}

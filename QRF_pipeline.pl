@@ -229,9 +229,48 @@ my $annotate_matrix=$output_matrix;
 $annotate_matrix=~s/\.\w+$/.annotate.txt/;
 
 if($omit_qrf_result_anno eq ""){
-	$cmd="paste $matrixqtlresult_hic $output_matrix | cut -f1-5,9,14-16 > $annotate_matrix\n";
+	$cmd="paste $matrixqtlresult_hic $output_matrix | cut -f1-5,9,16 > $annotate_matrix\n";
 	run_cmd($cmd);
 	
+}
+
+##delete temprary files
+if(($omit_matrixeqtl eq "") and (($matrixqtlresult eq "") or ($matrixqtlresult eq "NULL"))){
+		my $tmp="$matrixqtlresult";
+		$tmp=~s/cis-qtl/trans-qtl/;
+		`unlink $tmp`;
+}
+
+if($omit_matrixeqtl_result_anno eq ""){
+	`unlink $matrixqtlresult_cor`;
+	`unlink $matrixqtlresult_cor_uniq`;
+	$matrixqtlresult_cor=~s/\.bed$//;
+	`unlink ${matrixqtlresult_cor}.Cpg.bed`;
+	`unlink ${matrixqtlresult_cor}.Snp.bed`;
+}
+
+
+if($omit_add_hic eq ""){
+	`unlink $matrixqtlresult_hic`;
+}
+
+
+if($omit_add_recomb eq ""){
+	`unlink $matrixqtlresult_recomb`;
+}
+
+
+if($omit_cal_recomb_oe eq ""){
+	`unlink $matrixqtlresult_recomb_oe`;
+}
+
+if($omit_make_input_matrix eq ""){
+	`unlink $input_matrix`;
+}
+
+
+if($omit_random_forest eq ""){
+	`unlink $output_matrix`;
 }
 
 ##compare it with MatrixEQTL

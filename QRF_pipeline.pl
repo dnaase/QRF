@@ -154,6 +154,8 @@ if(($omit_matrixeqtl eq "") and (($matrixqtlresult eq "") or ($matrixqtlresult e
 	my $cmd="R --no-save --no-restore --args qrf_path=$qrf_path wd=$dir snpInfo=$snp_tab exprInfo=$gene_tab  snpLoc=$snp_loc exprLoc=$gene_loc covarInfo=$cov_tab prefix=$prefix chr=$chr sampleSize=$sampleSize < $qrf_path/R/call_meqtl_random.byChr.R\n";
 	run_cmd($cmd);
 	$matrixqtlresult = "$dir/cis-qtl.matrixEQtlAll.SampleSize-$sampleSize.$prefix.$chr.txt";
+}else{
+	$matrixqtlresult="$dir/$matrixqtlresult";
 }
 
 ##annotate MatrixEQTL result with coordinate

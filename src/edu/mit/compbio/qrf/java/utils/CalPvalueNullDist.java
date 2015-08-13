@@ -218,7 +218,7 @@ public class CalPvalueNullDist {
 	
 	private void initiate(String outputFile) throws IOException{
 		startTime = System.currentTimeMillis();
-		String prefix = outputFile.replaceAll(".\\w+$", "");
+		String prefix = outputFile.replaceAll(".\\w+$", ".range-" + genomicRangeStart + "-" + genomicRangeEnd);
 		dataColRealPair--;
 		dataColNullPair--;
 		writer = new PrintWriter(new File(prefix.concat(".permutationPvalue.txt")));

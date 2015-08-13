@@ -54,7 +54,6 @@ sub usage {
 	print STDERR "  --label_class STR : Specify the class label name used for QRF (Default: meqtl).\n";
 	print STDERR "  --permutation_times NUM : Specify the number of permutation used for QRF. 0 or negative value means not enabled (Default: 1).\n";
 	print STDERR "  --sep STR : Specify the string used to seperate the column (Default: \\\\t, tab delimit).\n";
-	print STDERR "  --sub_sampling NUM : Specify the number of sample used for QRF (Default: not enabled, and use all of the samples).\n";
 	print STDERR "  --hic_resolution NUM : Specify the resolution of HiC signal used, default is 1kb (Default: 1).\n\n";
 
     print STDERR " ###############Options for mode 2:\n\n";
@@ -84,7 +83,6 @@ my $class_index=4;
 my $label_class="meqtl";
 my $permutation_times=1;
 my $sep="\\\\t";
-my $sub_sampling="";
 my $hic_resolution=1;
 
 my $positive_probes_sampling=10000;
@@ -110,7 +108,6 @@ GetOptions(
 			"label_class=s" => \$label_class,
 			"permutation_times=i" => \$permutation_times,
 			"sep=s" => \$sep,
-			"sub_sampling=i" => \$sub_sampling,
 			"hic_resolution=i" => \$hic_resolution,
 			"positive_probes_sampling=i" => \$positive_probes_sampling,
 			"negative_probes_sampling=i" => \$negative_probes_sampling,
@@ -143,13 +140,11 @@ if($chr=~/\b\w+:\S+/){
 
 ##call meQTL/eQTL by MatrixEQTL
 if(($omit_matrixeqtl eq "") and (($matrixqtlresult eq "") or ($matrixqtlresult eq "NULL"))){
-	my $sampleSize=$sub_sampling;
-	if($sub_sampling eq ""){
-			my $tmp=`wc $dir/$snp_tab`;
-			chomp($tmp);
-			my @f=split " ",$tmp;
-			$sampleSize=int($f[1]/$f[0])-1;
-	}
+
+	my $tmp=`wc $dir/$snp_tab`;
+	chomp($tmp);
+	my @f=split " ",$tmp;
+	my $sampleSize=int($f[1]/$f[0])-1;
 	print STDERR "no Matrix EQTL results provided. So called MatrixEQTL now ...\n\n";
 	my $cmd="R --no-save --no-restore --args qrf_path=$qrf_path wd=$dir snpInfo=$snp_tab exprInfo=$gene_tab  snpLoc=$snp_loc exprLoc=$gene_loc covarInfo=$cov_tab prefix=$prefix chr=$chr sampleSize=$sampleSize < $qrf_path/R/call_meqtl_random.byChr.R\n";
 	run_cmd($cmd);

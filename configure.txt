@@ -8,4 +8,4 @@ covar_tab=cov.tab
 recombination_bw=genetic_map_1kGv3_test.hg19.bw
 recombination_expect=All_length_1M.all_chr.hg19.permutate100.1kGv3.summary.txt
 HiC_KRnorm=GM12878_chr1_1kb.KRnorm_raw_test.sparseBed.txt
-training_file=training_200.txt
+training_file=training_2k.txt

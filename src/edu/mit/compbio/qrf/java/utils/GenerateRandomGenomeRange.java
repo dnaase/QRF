@@ -109,13 +109,13 @@ public class GenerateRandomGenomeRange {
 			initiate(outputBedFile);
 			int range = end-start;
 			for(long i = 0; i < randomNum; i++){
-				int randomBlockLen = generator.nextInt(range)+1;
+				int randomBlockLen = generator.nextInt(range)+start;
 				Interval randomRegion = null;
 				int it = 0;
 				if(exclude != null){
 					do{
 						if(it > iteration){
-							randomBlockLen = generator.nextInt(range)+1;
+							randomBlockLen = generator.nextInt(range)+start;
 						}
 						randomRegion = randomGenomicGenerator.next(randomBlockLen);
 						
@@ -126,10 +126,11 @@ public class GenerateRandomGenomeRange {
 					//System.err.println(randomBlockLen + "\t" + randomGenomicGenerator.randomRange);
 					randomRegion = randomGenomicGenerator.next(randomBlockLen);
 				}
-				bedWriter.println(randomRegion.getChr() + "\t" + randomRegion.getStart() + "\t" + randomRegion.getStop() + "\t" + randomRegion.toOutput());
+				bedWriter.println(randomRegion.getChr() + "\t" + (randomRegion.getStart()-1) + "\t" + randomRegion.getStop() + "\t" + randomRegion.toOutput());
 				lineNum++;
 				if(lineNum % 5000 == 0){
 					log.info("Processing line: " + lineNum);
+					bedWriter.flush();
 				}
 			}
 			

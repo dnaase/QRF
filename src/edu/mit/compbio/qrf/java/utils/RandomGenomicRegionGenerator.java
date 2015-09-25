@@ -83,10 +83,12 @@ public class RandomGenomicRegionGenerator {
 			Interval bed = fastaIndex.getContigAndLocation(randomStart);
 			if(bed.getStop()-1+length > fastaIndex.getContigSize(bed.getChr())){
 				bed = this.next(length);
+			}else{
+				bed.setStop(bed.getStop()-1+length);
+				
 			}
-			
-			bed.setStop(bed.getStop()-1+length);
 			return bed;
+			
 	}
 	
 	//random single point region in the whole chromosome

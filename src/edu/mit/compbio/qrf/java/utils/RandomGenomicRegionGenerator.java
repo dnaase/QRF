@@ -46,7 +46,7 @@ public class RandomGenomicRegionGenerator {
 
 	private MersenneTwister generator = null;
 	private FastaIndexFileReader fastaIndex = null;
-	private int randomRange = Integer.MAX_VALUE;;
+	public long randomRange = Integer.MAX_VALUE;;
 
 	
 	public RandomGenomicRegionGenerator(){
@@ -72,15 +72,19 @@ public class RandomGenomicRegionGenerator {
 	
 	//random single point region in the whole genome
 	public Interval next(){
-		int randomStart = generator.nextInt(randomRange);
+		long randomStart = generator.nextLong(randomRange);
 		return fastaIndex.getContigAndLocation(randomStart);
 		
 	}
 	
 	//random bed region with defined length in the whole genome
 	public Interval next(int length){
-			int randomStart = generator.nextInt(randomRange);
+			long randomStart = generator.nextLong(randomRange);
 			Interval bed = fastaIndex.getContigAndLocation(randomStart);
+			if(bed.getStop()-1+length > fastaIndex.getContigSize(bed.getChr())){
+				bed = this.next(length);
+			}
+			
 			bed.setStop(bed.getStop()-1+length);
 			return bed;
 	}
@@ -88,24 +92,25 @@ public class RandomGenomicRegionGenerator {
 	//random single point region in the whole chromosome
 	public Interval next(String chr){
 		setRange(chr);
-		int randomStart = generator.nextInt(randomRange);
-		int randomEnd = randomStart;
-		return new Interval(chr, randomStart, randomEnd);
+		long randomStart = generator.nextLong(randomRange);
+		long randomEnd = randomStart;
+		return new Interval(chr, (int)randomStart, (int)randomEnd);
 	}
 	
 	//random bed region with defined length in the whole chromosome
 	public Interval next(String chr, int length){
 		setRange(chr);
-		int randomStart = generator.nextInt(randomRange);
-		int randomEnd = randomStart+length-1;
+		long randomStart = generator.nextLong(randomRange);
+		long randomEnd = randomStart+length-1;
 		if(randomEnd>randomRange) randomEnd = randomRange;
 		
-		return new Interval(chr, randomStart, randomEnd);
+		return new Interval(chr, (int)randomStart, (int)randomEnd);
 	}
 	
 	
 	public void setRange(){
 		randomRange = fastaIndex.genomeSize();
+		//System.err.println(fastaIndex);
 	}
 	
 	public void setRange(String chr){

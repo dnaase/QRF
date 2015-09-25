@@ -12,6 +12,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -49,6 +50,12 @@ public class CalPvalueNullDist {
 	@Option(name="-genomicRangeEnd",usage="the upper end of genomic range to calculate statistics test, default: 100000")
 	public int genomicRangeEnd = 100000;
 
+	@Option(name="-useMean",usage="use the mean for the comparison rather than median, default: not enabled")
+	public boolean useMean = false;
+
+	@Option(name="-hist",usage="generate histgram of the sampled median/mean in null distribution, default: not enabled")
+	public boolean hist = false;
+
 	
 	final private static String USAGE = "CalPvalueNullDist [opts] realPairs.bed nullPairs.bed";
 
@@ -56,6 +63,7 @@ public class CalPvalueNullDist {
 	private List<String> arguments = new ArrayList<String>();
 	
 	private PrintWriter writer = null; 
+	private PrintWriter histWriter = null; 
 	private static final Logger log = Logger.getLogger(CalPvalueNullDist.class);
 	
 	private static long startTime = -1;
@@ -109,10 +117,14 @@ public class CalPvalueNullDist {
 			if(line.startsWith("#"))
 				continue;
 			String[] splitin = line.split("\t");
+			if(splitin.length<=dataColRealPair)
+				continue;
 			int start = Integer.parseInt(splitin[1]);
 			int end = Integer.parseInt(splitin[2]);
 			if((end - start) >= genomicRangeStart && (end - start) < genomicRangeEnd){
-				realPairsValueList.add(Double.parseDouble(splitin[dataColRealPair]));
+				if(!splitin[dataColNullPair].equalsIgnoreCase("NA") && !splitin[dataColNullPair].equalsIgnoreCase("NaN")){
+					realPairsValueList.add(Double.parseDouble(splitin[dataColRealPair]));
+				}
 			}
 			
 			lineNum++;
@@ -132,6 +144,8 @@ public class CalPvalueNullDist {
 			if(line.startsWith("#"))
 				continue;
 			String[] splitin = line.split("\t");
+			if(splitin.length<=dataColNullPair)
+				continue;
 			int start = Integer.parseInt(splitin[1]);
 			int end = Integer.parseInt(splitin[2]);
 			if((end - start) >= genomicRangeStart && (end - start) < genomicRangeEnd){
@@ -153,23 +167,40 @@ public class CalPvalueNullDist {
 		while(lineNum < permutation){
 			ArrayList<Double> subSamplingNullPairsValueList = getSubSamplingList(nullPairsValueList, realPairsValueList.size());
 			//log.info(subSamplingNullPairsValueList.get(0) + "\t" + subSamplingNullPairsValueList.get(1) + "\t" +subSamplingNullPairsValueList.get(2) + "\t" +subSamplingNullPairsValueList.get(3));
-			nullPairsValueMedianList.add(getMedian(subSamplingNullPairsValueList));
+			Double stat = getMedian(subSamplingNullPairsValueList);
+			nullPairsValueMedianList.add(stat);
+			histWriter.println(stat);
 			//log.info(getMedian(subSamplingNullPairsValueList));
 			lineNum++;
-			if(lineNum % 10 == 0){
+			if(lineNum % 100 == 0){
 				log.info("Permutation: " + lineNum);
 			}
 		}
 		
 		log.info("Calculate p value ...");
+		Collections.sort(nullPairsValueMedianList);
 		int pos = findPosition(nullPairsValueMedianList, realPairsValueMedian, 0, nullPairsValueMedianList.size()-1);
 		double permutatedPvalue = (double)(pos+1)/(double)nullPairsValueMedianList.size();
 		log.info("p value is: " + permutatedPvalue);
-		writer.println("realPairs median position is " + pos);
-		writer.println("realPairs median is " + realPairsValueMedian);
-		//log.info(nullPairsValueMedianList.get(0) + "\t" + nullPairsValueMedianList.get(1) + "\t" +nullPairsValueMedianList.get(2) + "\t" +nullPairsValueMedianList.get(3));
-		writer.println("the median of null_pair_medians is " + getMedian(nullPairsValueMedianList));
+		if(useMean){
+			writer.println("realPairs mean position is " + pos);
+			writer.println("realPairs mean is " + realPairsValueMedian);
+			//log.info(nullPairsValueMedianList.get(0) + "\t" + nullPairsValueMedianList.get(1) + "\t" +nullPairsValueMedianList.get(2) + "\t" +nullPairsValueMedianList.get(3));
+			writer.println("the mean of null_pair_means is " + getMedian(nullPairsValueMedianList));
+		}else{
+			writer.println("realPairs median position is " + pos);
+			writer.println("realPairs median is " + realPairsValueMedian);
+			//log.info(nullPairsValueMedianList.get(0) + "\t" + nullPairsValueMedianList.get(1) + "\t" +nullPairsValueMedianList.get(2) + "\t" +nullPairsValueMedianList.get(3));
+			writer.println("the median of null_pair_medians is " + getMedian(nullPairsValueMedianList));
+			
+		}
 		writer.println("p value is " + permutatedPvalue);
+		//for(double m : nullPairsValueMedianList){
+		//	writer.println(m);
+		//}
+		//writer.println();
+		
+		
 		finished();
 	
 	}
@@ -196,8 +227,12 @@ public class CalPvalueNullDist {
 		for(double v : valueList){
 			stats.addValue(v);
 		}
+		if(useMean){
+			return stats.getMean();
+		}else{
+			return stats.getPercentile(50);
+		}
 		
-		return stats.getPercentile(50);
 		
 	}
 	
@@ -221,13 +256,24 @@ public class CalPvalueNullDist {
 		String prefix = outputFile.replaceAll(".\\w+$", ".range-" + genomicRangeStart + "-" + genomicRangeEnd);
 		dataColRealPair--;
 		dataColNullPair--;
-		writer = new PrintWriter(new File(prefix.concat(".permutationPvalue.txt")));
+		if(useMean){
+			writer = new PrintWriter(new File(prefix.concat(".mean.permutationPvalue.txt")));
+		}else{
+			writer = new PrintWriter(new File(prefix.concat(".permutationPvalue.txt")));
+		}
+		if(hist){
+			histWriter = new PrintWriter(new File(prefix.concat(".histgramSampledInNull.txt")));
+		}
+		
 		generator = new MersenneTwister();
 	}
 	
 	private void finished() throws IOException{
 
 		writer.close();
+		if(hist){
+			histWriter.close();
+		}
 		
 		long endTime   = System.currentTimeMillis();
 		double totalTime = endTime - startTime;

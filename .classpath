@@ -11,5 +11,6 @@
 	<classpathentry kind="lib" path="lib/jcommon-1.0.23.jar"/>
 	<classpathentry kind="lib" path="lib/java-genomics-io.jar"/>
 	<classpathentry kind="lib" path="lib/BisSNP-0.86.2.jar"/>
+	<classpathentry kind="lib" path="lib/htsjdk-1.138.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

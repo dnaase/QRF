@@ -47,7 +47,7 @@ import edu.unc.genomics.Interval;
 public class FastaIndexFileReader {
 
 	private Map<String,Integer> sequenceEntries = new HashMap<String,Integer>();
-	private int genomeSize = 0;
+	private long genomeSize = 0;
 	/**
 	 * 
 	 */
@@ -72,7 +72,7 @@ public class FastaIndexFileReader {
 		return sequenceEntries.size();
 	}
 	
-	public int genomeSize(){
+	public long genomeSize(){
 		return genomeSize;
 	}
 	
@@ -81,19 +81,19 @@ public class FastaIndexFileReader {
 		return sequenceEntries.get(chr);
 	}
 	
-	public Interval getContigAndLocation(int len){
+	public Interval getContigAndLocation(long len){
 
 		if(len > genomeSize) throw new IllegalArgumentException("Provided length " + len + " is bigger than genome length ");
 		String tmp = null;
 		for(String contig : sequenceEntries.keySet()){
 			int size = sequenceEntries.get(contig);
 			if(len - size < 0){
-				return new Interval(contig, len,len);
+				return new Interval(contig, (int)len,(int)len);
 			}
 			len = len - size;
 			tmp = contig;
 		}
-		return new Interval(tmp, len,len);
+		return new Interval(tmp,(int) len,(int)len);
 	}
 	
 	
@@ -103,7 +103,7 @@ public class FastaIndexFileReader {
 		while( (line = br.readLine()) != null){
 			String[] splitin = line.split("\t");
 			sequenceEntries.put(splitin[0],Integer.parseInt(splitin[1]));
-			genomeSize+=Integer.parseInt(splitin[1]);
+			genomeSize+=Long.parseLong(splitin[1]);
 		}
 		br.close();
 		

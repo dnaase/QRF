@@ -1,26 +1,3 @@
-/*
- * The MIT License (MIT)
- * Copyright (c) 2015 dnaase <Yaping Liu: lyping1986@gmail.com>
-
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
-
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
-
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 /**
  * HapmapToMatrixQtlBinary.java
  * Dec 20, 2014
@@ -57,6 +34,10 @@ import org.kohsuke.args4j.Option;
  */
 public class HapmapToMatrixQtlBinary {
 
+	@Option(name="-snp_id",usage="whether or not to output also SNP id map information in a seperate file. default:false")
+	public boolean snp_id = false;
+	@Option(name="-addChr",usage="whether or not to add chr as prefix in the contig number. default:false")
+	public boolean addChr = false;
 	@Option(name="-name",usage="column number of name field (rs ID) in snp138OrthoPt4Pa2Rm3.txt.1-based default:4")
 	public int name = 4;
 	@Option(name="-chimp_allele",usage="column number of chimpAllele field (e.g. chimpanzee's allele info) in snp138OrthoPt4Pa2Rm3.txt.1-based default:8")
@@ -76,6 +57,7 @@ public class HapmapToMatrixQtlBinary {
 	protected static long startTime = -1;
 	protected static long lineNum=0;
 
+	PrintWriter snpIdWriter = null;
 	
 	/**
 	 * @param args
@@ -110,7 +92,7 @@ public class HapmapToMatrixQtlBinary {
 					}
 					//read input bed file, for each row,;
 					String inputHapmap = arguments.get(0);
-					initiate();
+					initiate(inputHapmap);
 					//get a hashmap of SNP name and major allele's character 
 					HashMap<String, Character> majorAlleleHash = null;
 					if(dbsnp != null){
@@ -230,7 +212,18 @@ public class HapmapToMatrixQtlBinary {
 				for(int i = startCol-1; i < splitin.length; i++){
 					binaryMatrixWriter.print("\t" + splitin[i]);
 				}
+				if(snp_id){
+					snpIdWriter.println("SNP\tchrm_snp\tpos");
+				}
 			}else{
+				if(snp_id){
+					snpIdWriter.print(splitin[0]);
+					if(addChr){
+						snpIdWriter.println("\tchr" + splitin[2] + "\t" + splitin[3]);
+					}else{
+						snpIdWriter.println("\t" + splitin[2] + "\t" + splitin[3]);
+					}
+				}
 				char majorAllele;
 				if(majorAlleleHash != null && majorAlleleHash.containsKey(splitin[0])){
 					majorAllele = majorAlleleHash.get(splitin[0]);
@@ -312,17 +305,22 @@ public class HapmapToMatrixQtlBinary {
 		return majorAllele;
 	}
 	
-	private void initiate() throws IOException{
+	private void initiate(String inputHapmap) throws IOException{
 		startTime = System.currentTimeMillis();
 		//System.out.println("HmmHunter started at : " + startTime);
 		//System.out.println();
-
+		if(snp_id){
+			String prefix = inputHapmap.replaceAll(".\\w+$", "");
+			snpIdWriter = new PrintWriter(prefix.concat(".snp_id_map.txt"));
+		}
 
 		
 	}
 	
 	private void finished() throws IOException{
-		
+		if(snp_id){
+			snpIdWriter.close();
+		}
 		long endTime   = System.currentTimeMillis();
 		double totalTime = endTime - startTime;
 		totalTime /= 1000;

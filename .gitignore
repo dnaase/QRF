@@ -25,3 +25,7 @@ test_data_zip/GM12878_chr1_1kb.KRnorm_raw_test.sparseBed.txt
 test_data_zip/SNP.locs
 test_data_zip/SNP.tab
 test_data_zip/training_2k.txt
+CalPvalueNullDist.jar
+GenerateRandomGenomeRange.jar
+RandomMatchedInterval.2.jar
+htsjdk-1.138.jar

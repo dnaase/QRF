@@ -77,6 +77,10 @@ public class RandomMatchedInterval {
 	
 	@Option(name="-eps",usage="the minimum distance allowed between input region and random paired region, default: 0.05")
 	public double eps = 0.05;
+
+	@Option(name="-percDiff",usage="the percentage of variation allowed between input region and random paired region, default: 10")
+	public double percDiff = 10;
+
 	
 	@Option(name="-iteration",usage="the maximum iteration allowed to search the best matched random reigon, default: 1000")
 	public int iteration = 1000;
@@ -87,7 +91,7 @@ public class RandomMatchedInterval {
 	@Option(name="-randomWholeGenome",usage="randomize the region in the whole genome , default is just random within the same chromosome.. default: not enabled")
 	public boolean randomWholeGenome = false;
 	
-	@Option(name="-regionMode",usage="find the matched value in the specified region rather than the two ends' value , default: not enabled")
+	@Option(name="-regionMode",usage="find the matched value in the specified region rather than the two ends' value , 0 means no, 1 means regionMode for this bigwig file. default: 0, not enabled")
 	public boolean regionMode = false;
 	
 	@Option(name="-useMean0",usage="0 means useMean0, 1 or others means not useMean0.  average over bases with non-covered bases counting as zeroes, good for motif density, only work for regionMode,should be matched to the bigWig files' order. default: not enabled")
@@ -172,12 +176,11 @@ public class RandomMatchedInterval {
 						bedWriter.print("\t" + o);
 					}
 					bedWriter.println();
-				}else{
-					omitRows++;
 				}
 				lineNum++;
 				if(lineNum % 5000 == 0){
 					log.info("Processing line: " + lineNum);
+					restartBigwigReaders();
 				}
 			}
 			br.close();
@@ -216,7 +219,7 @@ public class RandomMatchedInterval {
 						 valuesInInputRegion[j]=treatNaAs;
 					 j++;
 			 	}
-				
+				double preDist = Double.MAX_VALUE;
 				while(it < iteration){
 					double[] valuesInRandomRegion = new double[bigWigFileReaders.size()];
 					j = 0;
@@ -233,16 +236,22 @@ public class RandomMatchedInterval {
 						 j++;
 				 	}
 					EuclideanDistance euclideanDistance = new EuclideanDistance();
-					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0 && euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion) < eps){
-						bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
-						for(double v : valuesInRandomRegion){
-							bo.addValue(v);
-						}
-						bo.addValue((new Interval(chr, start, end)).toString());
-						for(double v : valuesInInputRegion){
-							bo.addValue(v);
-						}
-						return bo;
+					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0){
+						double dist = euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion);
+						if(dist < eps || dist < preDist){
+							bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
+							for(double v : valuesInRandomRegion){
+								bo.addValue(v);
+							}
+							bo.addValue((new Interval(chr, start, end)).toString());
+							for(double v : valuesInInputRegion){
+								bo.addValue(v);
+							}
+							if(dist < eps){
+								return bo;
+							}
+						}	
+						
 					}
 					if(randomWholeGenome){
 						randomRegion = randomGenomicGenerator.next(end-start);
@@ -267,6 +276,7 @@ public class RandomMatchedInterval {
 						 valuesInInputRegion[j]=treatNaAs;
 					 j++;
 			 	}
+				double preDist = Double.MAX_VALUE;
 				while(it < iteration){
 					double[] valuesInRandomRegion = new double[bigWigFileReaders.size()*2];
 					j = 0;
@@ -283,16 +293,22 @@ public class RandomMatchedInterval {
 						 j++;
 				 	}
 					EuclideanDistance euclideanDistance = new EuclideanDistance();
-					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0 && euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion) < eps){
-						bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
-						for(double v : valuesInRandomRegion){
-							bo.addValue(v);
-						}
-						bo.addValue((new Interval(chr, start, end)).toString());
-						for(double v : valuesInInputRegion){
-							bo.addValue(v);
-						}
-						return bo;
+					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0){
+						double dist = euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion);
+						if(dist < eps || dist < preDist){
+							bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
+							for(double v : valuesInRandomRegion){
+								bo.addValue(v);
+							}
+							bo.addValue((new Interval(chr, start, end)).toString());
+							for(double v : valuesInInputRegion){
+								bo.addValue(v);
+							}
+							if(dist < eps){
+								return bo;
+							}
+						}	
+						
 					}
 					if(randomWholeGenome){
 						randomRegion = randomGenomicGenerator.next(end-start);
@@ -303,6 +319,7 @@ public class RandomMatchedInterval {
 				}
 			}
 			if(it >= iteration){
+				omitRows++;
 				if(includeNA){
 					bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
 					for(BigWigFileReader bbreader : bigWigFileReaders){
@@ -326,6 +343,20 @@ public class RandomMatchedInterval {
 		bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
 		bo.addValue((new Interval(chr, start, end)).toString());
 		return bo;
+	}
+	
+	private void restartBigwigReaders() throws IOException{
+		if(bigWigFiles != null && !bigWigFiles.isEmpty()){
+			for(int i = 0; i < bigWigFiles.size(); i++){
+				bigWigFileReaders.get(i).close();
+			}
+			bigWigFileReaders.clear();
+			for(int i = 0; i < bigWigFiles.size(); i++){
+				BigWigFileReader bbreader = new BigWigFileReader((new File(bigWigFiles.get(i))).toPath());
+				bigWigFileReaders.add(bbreader);
+			}
+		}
+		
 	}
 	
 

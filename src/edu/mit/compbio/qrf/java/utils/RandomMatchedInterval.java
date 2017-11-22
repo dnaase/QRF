@@ -74,9 +74,6 @@ public class RandomMatchedInterval {
 	
 	@Option(name="-bigWig",usage="input big wig file for matching, default: not enabled")
 	public List<String> bigWigFiles = null;
-	
-	@Option(name="-eps",usage="the minimum distance allowed between input region and random paired region, default: 0.05")
-	public double eps = 0.05;
 
 	@Option(name="-percDiff",usage="the percentage of variation allowed between input region and random paired region, default: 10")
 	public double percDiff = 10;
@@ -91,8 +88,8 @@ public class RandomMatchedInterval {
 	@Option(name="-randomWholeGenome",usage="randomize the region in the whole genome , default is just random within the same chromosome.. default: not enabled")
 	public boolean randomWholeGenome = false;
 	
-	@Option(name="-regionMode",usage="find the matched value in the specified region rather than the two ends' value , 0 means no, 1 means regionMode for this bigwig file. default: 0, not enabled")
-	public boolean regionMode = false;
+	@Option(name="-regionMode",usage="find the matched value in the specified region rather than the two ends' value , 0 means use regionMode, 1 means no regionMode for this bigwig file. default: not specified")
+	public List<Integer> regionMode = null;
 	
 	@Option(name="-useMean0",usage="0 means useMean0, 1 or others means not useMean0.  average over bases with non-covered bases counting as zeroes, good for motif density, only work for regionMode,should be matched to the bigWig files' order. default: not enabled")
 	public List<Integer> useMean0 = null;
@@ -117,6 +114,7 @@ public class RandomMatchedInterval {
 	private static long startTime = -1;
 	private static long omitRows = 0;
 	private static long lineNum=0;
+	private static long queryNum=0;
 	
 	OpenOption[] options = new OpenOption[] { WRITE, CREATE };
 	
@@ -180,8 +178,9 @@ public class RandomMatchedInterval {
 				lineNum++;
 				if(lineNum % 5000 == 0){
 					log.info("Processing line: " + lineNum);
-					restartBigwigReaders();
+					
 				}
+				
 			}
 			br.close();
 			
@@ -203,112 +202,98 @@ public class RandomMatchedInterval {
 		//if(bigWigFiles != null && bigWigFiles.length>0){		
 		if(bigWigFiles != null && !bigWigFiles.isEmpty()){// when big wig file is provided
 			int it = 0;
-			if(regionMode){ // measure the value in the whole region
-				double[] valuesInInputRegion = new double[bigWigFileReaders.size()];
+			
+			int size = bigWigFileReaders.size();
+			for(int r : regionMode){
+				size+=r;
+			}
+			
+				double[] valuesInInputRegion = new double[size];
 				int j = 0;
+				int index=0;
 				for(BigWigFileReader bbreader : bigWigFileReaders){				 
-					 SummaryStatistics valueInInputRegion = bbreader.queryStats(chr, start, end);
-					 if(useMean0.get(j) == 0){
-						 valuesInInputRegion[j] = (double)valueInInputRegion.getSum()/(double)(end-start);
-						 
-					 }else{
-						 valuesInInputRegion[j] = valueInInputRegion.getMean();
-					 }
-					 
-					 if(Double.isNaN(valuesInInputRegion[j]))
-						 valuesInInputRegion[j]=treatNaAs;
-					 j++;
-			 	}
-				double preDist = Double.MAX_VALUE;
-				while(it < iteration){
-					double[] valuesInRandomRegion = new double[bigWigFileReaders.size()];
-					j = 0;
-					for(BigWigFileReader bbreader : bigWigFileReaders){				 
-						 SummaryStatistics valueInRandomRegion = bbreader.queryStats(randomRegion);
-						 if(useMean0.get(j) == 0){
-							 valuesInRandomRegion[j] = (double)valueInRandomRegion.getSum()/(double)(end-start);
+					if(regionMode.get(index)==0){
+						SummaryStatistics valueInInputRegion = bbreader.queryStats(chr, start, end);
+						 if(useMean0.get(index) == 0){
+							 valuesInInputRegion[j] = (double)valueInInputRegion.getSum()/(double)(end-start);
+							 
 						 }else{
-							 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
+							 valuesInInputRegion[j] = valueInInputRegion.getMean();
 						 }
 						 
-						 if(Double.isNaN(valuesInRandomRegion[j]))
-							 valuesInRandomRegion[j]=treatNaAs;
+						 if(Double.isNaN(valuesInInputRegion[j]))
+							 valuesInInputRegion[j]=treatNaAs;
 						 j++;
-				 	}
-					EuclideanDistance euclideanDistance = new EuclideanDistance();
-					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0){
-						double dist = euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion);
-						if(dist < eps || dist < preDist){
-							bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
-							for(double v : valuesInRandomRegion){
-								bo.addValue(v);
-							}
-							bo.addValue((new Interval(chr, start, end)).toString());
-							for(double v : valuesInInputRegion){
-								bo.addValue(v);
-							}
-							if(dist < eps){
-								return bo;
-							}
-						}	
-						
-					}
-					if(randomWholeGenome){
-						randomRegion = randomGenomicGenerator.next(end-start);
+						 index++;
 					}else{
-						randomRegion = randomGenomicGenerator.next(chr, end-start);
+						SummaryStatistics valueInInputRegion = bbreader.queryStats(chr, start, start);
+						 valuesInInputRegion[j] = valueInInputRegion.getMean();
+						 if(Double.isNaN(valuesInInputRegion[j]))
+							 valuesInInputRegion[j]=treatNaAs;
+						 j++;
+						 valueInInputRegion = bbreader.queryStats(chr, end, end);
+						 valuesInInputRegion[j] = valueInInputRegion.getMean();
+						 if(Double.isNaN(valuesInInputRegion[j]))
+							 valuesInInputRegion[j]=treatNaAs;
+						 j++;
+						 index++;
 					}
-					it++;
-				}
-				
-			}else{ // measure the value near start and end seperately
-				double[] valuesInInputRegion = new double[bigWigFileReaders.size()*2];
-				int j = 0;
-				for(BigWigFileReader bbreader : bigWigFileReaders){				 
-					 SummaryStatistics valueInInputRegion = bbreader.queryStats(chr, start, start);
-					 valuesInInputRegion[j] = valueInInputRegion.getMean();
-					 if(Double.isNaN(valuesInInputRegion[j]))
-						 valuesInInputRegion[j]=treatNaAs;
-					 j++;
-					 valueInInputRegion = bbreader.queryStats(chr, end, end);
-					 valuesInInputRegion[j] = valueInInputRegion.getMean();
-					 if(Double.isNaN(valuesInInputRegion[j]))
-						 valuesInInputRegion[j]=treatNaAs;
-					 j++;
+					
 			 	}
-				double preDist = Double.MAX_VALUE;
+
 				while(it < iteration){
-					double[] valuesInRandomRegion = new double[bigWigFileReaders.size()*2];
+					double[] valuesInRandomRegion = new double[size];
 					j = 0;
+					index=0;
 					for(BigWigFileReader bbreader : bigWigFileReaders){				 
-						 SummaryStatistics valueInRandomRegion = bbreader.queryStats(randomRegion.getChr(),randomRegion.getStart(),randomRegion.getStart());
-						 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
-						 if(Double.isNaN(valuesInRandomRegion[j]))
-							 valuesInRandomRegion[j]=treatNaAs;
-						 j++;
-						 valueInRandomRegion = bbreader.queryStats(randomRegion.getChr(),randomRegion.getStop(),randomRegion.getStop());
-						 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
-						 if(Double.isNaN(valuesInRandomRegion[j]))
-							 valuesInRandomRegion[j]=treatNaAs;
-						 j++;
-				 	}
-					EuclideanDistance euclideanDistance = new EuclideanDistance();
-					if(valuesInRandomRegion.length > 0 && valuesInInputRegion.length > 0){
-						double dist = euclideanDistance.compute(valuesInInputRegion, valuesInRandomRegion);
-						if(dist < eps || dist < preDist){
-							bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
-							for(double v : valuesInRandomRegion){
-								bo.addValue(v);
+						if(regionMode.get(index)==0){
+							SummaryStatistics valueInRandomRegion = bbreader.queryStats(randomRegion);
+							 if(useMean0.get(index) == 0){
+								 valuesInRandomRegion[j] = (double)valueInRandomRegion.getSum()/(double)(end-start);
+							 }else{
+								 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
+							 }
+							 
+							 if(Double.isNaN(valuesInRandomRegion[j]))
+								 valuesInRandomRegion[j]=treatNaAs;
+							 if(Math.abs((valuesInRandomRegion[j]-valuesInInputRegion[j])*100/valuesInInputRegion[j])>percDiff){
+								break;
+							 }
+							 
+							 j++;
+						}else{
+							SummaryStatistics valueInRandomRegion = bbreader.queryStats(randomRegion.getChr(),randomRegion.getStart(),randomRegion.getStart());
+							 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
+							 if(Double.isNaN(valuesInRandomRegion[j]))
+								 valuesInRandomRegion[j]=treatNaAs;
+							 if(Math.abs((valuesInRandomRegion[j]-valuesInInputRegion[j])*100/valuesInInputRegion[j])>percDiff){
+									break;
 							}
-							bo.addValue((new Interval(chr, start, end)).toString());
-							for(double v : valuesInInputRegion){
-								bo.addValue(v);
+							 j++;
+							 
+							 valueInRandomRegion = bbreader.queryStats(randomRegion.getChr(),randomRegion.getStop(),randomRegion.getStop());
+							 valuesInRandomRegion[j] = valueInRandomRegion.getMean();
+							 if(Double.isNaN(valuesInRandomRegion[j]))
+								 valuesInRandomRegion[j]=treatNaAs;
+							 if(Math.abs((valuesInRandomRegion[j]-valuesInInputRegion[j])*100/valuesInInputRegion[j])>percDiff){
+									break;
 							}
-							if(dist < eps){
-								return bo;
-							}
-						}	
+							 j++;
+						}
+						index++;
 						
+				 	}
+					if(j==size){
+						bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
+						for(double v : valuesInRandomRegion){
+							bo.addValue(v);
+						}
+						bo.addValue((new Interval(chr, start, end)).toString());
+						for(double v : valuesInInputRegion){
+							bo.addValue(v);
+						}
+						
+						return bo;
 					}
 					if(randomWholeGenome){
 						randomRegion = randomGenomicGenerator.next(end-start);
@@ -316,25 +301,31 @@ public class RandomMatchedInterval {
 						randomRegion = randomGenomicGenerator.next(chr, end-start);
 					}
 					it++;
-				}
-			}
-			if(it >= iteration){
-				omitRows++;
-				if(includeNA){
-					bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
-					for(BigWigFileReader bbreader : bigWigFileReaders){
-						bo.addValue("NA");
+					queryNum++;
+					if(queryNum > 1000000){
+						restartBigwigReaders();
+						queryNum=0;
+						
 					}
-					bo.addValue((new Interval(chr, start, end)).toString());
-					for(BigWigFileReader bbreader : bigWigFileReaders){
-						bo.addValue("NA");
-					}
-					return bo;
-				}else{
-					return null;
 				}
-				
-			}
+				if(it >= iteration){
+					omitRows++;
+					if(includeNA){
+						bedObject bo = UtilsFuns.intervalToBedObject(randomRegion);
+						for(int i = 0; i < size; i++){
+							bo.addValue("NA");
+						}
+						bo.addValue((new Interval(chr, start, end)).toString());
+						for(int i = 0; i < size; i++){
+							bo.addValue("NA");
+						}
+						return bo;
+					}else{
+						return null;
+					}
+					
+				}
+			
 			
 			
 		}//if big wig is not provided, just return the length matched region. 
